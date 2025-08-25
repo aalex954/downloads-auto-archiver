@@ -60,4 +60,4 @@ Tasks/**
 *.bak
 *.old
 
-conf.txt
+conf.ps1
