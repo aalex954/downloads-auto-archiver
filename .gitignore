@@ -1,0 +1,63 @@
+# ---- OS / Explorer cruft ----
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# ---- Editors / IDEs ----
+.vscode/
+*.code-workspace
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# ---- PowerShell scratch / backups ----
+*.ps1~
+*.psm1~
+*.psd1~
+*.ps1xml~
+*.psc1~
+*.cache
+
+# ---- Logs & runtime output ----
+logs/
+**/_logs/
+DownloadsAutoArchiver.log.jsonl
+DownloadsAutoArchiver.log.csv
+*.log.jsonl
+*.log.csv
+*.log
+*.tmp
+*.temp
+
+# ---- Release / build artifacts ----
+dist/
+build/
+out/
+release/
+artifacts/
+*.zip
+*.7z
+*.tar
+*.tar.gz
+*.tgz
+*.tar.bz2
+*.tbz2
+*.tar.xz
+*.txz
+*.iso
+
+# ---- Task Scheduler exports (if you store them here) ----
+Tasks/**
+**/scheduled_task_export.xml
+
+# ---- Misc ----
+~$*
+*.bak
+*.old
+
+conf.txt
