@@ -28,6 +28,7 @@ Safely and efficiently moves **old or untouched items** from your Windows 11 **D
 * **Logging**: JSON Lines **and** CSV, to local and/or remote folders
 * **Cleanup**: delete **empty** folders left behind
 * **Safety caps**: max operations per run; free‑space check on destination
+* **Optional configuration file**: Load parameters from a `.json` or `.psd1` config file, with command-line parameters taking precedence
 
 > **Note on LastAccessTime (Untouched):** Windows may throttle/disable LastAccessTime updates. If it’s stale, rely more on `OlderThan` rules, or consider adjusting OS policy (see below).
 
@@ -52,7 +53,11 @@ Safely and efficiently moves **old or untouched items** from your Windows 11 **D
 
 ---
 
-## Configuration (parameters)
+## Configuration (parameters & config file)
+
+You can configure the script in two ways:
+
+### 1. Parameters
 
 Adjust parameters at the top of the script or pass them on the command line.
 
@@ -64,6 +69,7 @@ Adjust parameters at the top of the script or pass them on the command line.
 | `VerboseLog`                   | switch                                       | `$false`                                    | Console‑style messages in Task Scheduler history                       |
 | `LocalLogDir`                  | string                                       | `C:\ProgramData\DownloadsAutoArchiver\logs` | JSONL + CSV written here                                               |
 | `RemoteLogDir`                 | string or `$null`                            | `Z:\Downloads_Archive\_logs`                | Set `$null` to disable remote logging                                  |
+| `ConfigFile`                   | string (optional)                            | `$null`                                     | **Path to a `.json` or `.psd1` config file** (see below)               |
 | `FileUntouchedOlderThan`       | `TimeSpan?`                                  | `14 days`                                   | Top‑level files: LastAccessTime threshold                              |
 | `FileOlderThan`                | `TimeSpan?`                                  | `30 days`                                   | Top‑level files: age using `FileAgeProperty`                           |
 | `FileTimeCombine`              | `AND`/`OR`                                   | `AND`                                       | How to combine untouched + age for files                               |
@@ -93,6 +99,47 @@ Adjust parameters at the top of the script or pass them on the command line.
 
 Add or remove patterns to match your tools.
 
+### 2. Configuration file (NEW)
+
+You can now specify a configuration file using the `-ConfigFile` parameter. Supported formats:
+
+- **JSON** (`.json`)
+- **PowerShell data file** (`.psd1`)
+
+**Example usage:**
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File "C:\Scripts\Downloads-Auto-Archiver.ps1" -ConfigFile "C:\Scripts\archiver-config.json"
+```
+
+**Example JSON config:**
+
+```json
+{
+  "SourceDir": "C:\\Users\\user\\Downloads",
+  "DestinationRoot": "Z:\\Downloads_Archive",
+  "DryRun": false,
+  "MaxOperationsPerRun": 100
+}
+```
+
+**Example PSD1 config:**
+
+```powershell
+@{
+    SourceDir = 'C:\Users\user\Downloads'
+    DestinationRoot = 'Z:\Downloads_Archive'
+    DryRun = $false
+    MaxOperationsPerRun = 100
+}
+```
+
+**Notes:**
+
+- Any parameter set on the command line **overrides** the config file.
+- If a parameter is not set on the command line, the config file value is used.
+- If neither is set, the script's default is used.
+
 ---
 
 ## Usage
@@ -109,40 +156,52 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "C:\Scripts\Downloads-Auto-A
 powershell -NoProfile -ExecutionPolicy Bypass -File "C:\Scripts\Downloads-Auto-Archiver.ps1" -DryRun:$false
 ```
 
-### 3) Common policy examples
+### 3) Using a configuration file
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File "C:\Scripts\Downloads-Auto-Archiver.ps1" -ConfigFile "C:\Scripts\archiver-config.json"
+```
+
+You can still override any parameter on the command line:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File "C:\Scripts\Downloads-Auto-Archiver.ps1" -ConfigFile "C:\Scripts\archiver-config.json" -DryRun
+```
+
+### 4) Common policy examples
 
 Move files untouched ≥ 10 days **OR** older than 20 days; folders require **AND** with deep scan; UNC dest:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File "C:\Scripts\Downloads-Auto-Archiver.ps1" \
-  -DestinationRoot "\\\\NAS\\Share\\Downloads_Archive" \
-  -FileUntouchedOlderThan (New-TimeSpan -Days 10) \
-  -FileOlderThan (New-TimeSpan -Days 20) \
-  -FileTimeCombine OR \
-  -FolderUntouchedOlderThan (New-TimeSpan -Days 21) \
-  -FolderOlderThan (New-TimeSpan -Days 30) \
-  -FolderTimeCombine AND \
-  -DeepFolderActivityScan \
+powershell -NoProfile -ExecutionPolicy Bypass -File "C:\Scripts\Downloads-Auto-Archiver.ps1" `
+  -DestinationRoot "\\NAS\Share\Downloads_Archive" `
+  -FileUntouchedOlderThan (New-TimeSpan -Days 10) `
+  -FileOlderThan (New-TimeSpan -Days 20) `
+  -FileTimeCombine OR `
+  -FolderUntouchedOlderThan (New-TimeSpan -Days 21) `
+  -FolderOlderThan (New-TimeSpan -Days 30) `
+  -FolderTimeCombine AND `
+  -DeepFolderActivityScan `
   -DryRun:$false
 ```
 
 Only archive‑extracted moves (top‑level) + skip conflicts:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File "C:\Scripts\Downloads-Auto-Archiver.ps1" \
-  -FileUntouchedOlderThan $null -FileOlderThan $null \
-  -FolderUntouchedOlderThan $null -FolderOlderThan $null \
+powershell -NoProfile -ExecutionPolicy Bypass -File "C:\Scripts\Downloads-Auto-Archiver.ps1" `
+  -FileUntouchedOlderThan $null -FileOlderThan $null `
+  -FolderUntouchedOlderThan $null -FolderOlderThan $null `
   -OnNameConflict Skip -DryRun:$false
 ```
 
 Include only certain types, exclude ISO and temp:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File "C:\Scripts\Downloads-Auto-Archiver.ps1" \
+powershell -NoProfile -ExecutionPolicy Bypass -File "C:\Scripts\Downloads-Auto-Archiver.ps1" `
   -IncludePatterns '*.pdf','*.zip','*.msi' -ExcludePatterns '*.iso','*.tmp'
 ```
 
-### 4) My policy
+### 5) My policy
 Audits top-level items in `%USERPROFILE%\Downloads` and moves matches to `A:\Downloads Auto-Archiver\YYYY\MM`, with local/remote logs, rename-on-conflict, Robocopy for `≥256` MB, a 500-operation safety cap, and empty-folder cleanup. Selection requires files untouched ≥14 days AND age ≥30 days, folders untouched ≥30 days AND age ≥45 days (deep descendant activity considered); extracted archives (archive + matching sibling folder) qualify after a 30-minute grace, while hidden and in-progress downloads are ignored.
 
 ```powershell
@@ -274,6 +333,10 @@ Delete the script and log folders if no longer needed.
 
 ## Changelog
 
+**v1.1**
+
+* Added support for optional configuration file (`-ConfigFile`) in JSON or PSD1 format.
+
 **v1.0**
 
-* Initial release with dry‑run, file/folder AND/OR rules, deep activity scan, archive‑extracted detection, extensive partial‑download excludes, Year/Month bucketing, robocopy large‑file moves, JSONL/CSV logging, empty‑folder cleanup, and safety caps.
+* Initial release with dry‑run, file/folder AND/OR rules, deep activity scan, archive‑extracted detection, extensive partial‑download excludes, Year/Month bucketing, robocopy large‑file moves, JSONL/CSV logging, empty‑folder cleanup, and

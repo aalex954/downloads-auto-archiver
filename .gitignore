@@ -61,3 +61,4 @@ Tasks/**
 *.old
 
 conf.ps1
+test.json

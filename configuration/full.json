@@ -1,0 +1,30 @@
+{
+  "DryRun": true,
+  "LocalLogDir": "%USERPROFILE%\\DownloadsAutoArchiver\\logs",
+  "FileUntouchedOlderThan": "14.00:00:00",
+  "FileOlderThan": "30.00:00:00",
+  "FileTimeCombine": "AND",
+  "FileAgeProperty": "CreationTime",
+  "FolderUntouchedOlderThan": "30.00:00:00",
+  "FolderOlderThan": "45.00:00:00",
+  "FolderTimeCombine": "AND",
+  "FolderAgeProperty": "CreationTime",
+  "DeepFolderActivityScan": true,
+  "ArchiveExtensions": [
+    "*.zip", "*.7z", "*.rar", "*.tar", "*.tar.gz", "*.tgz",
+    "*.tar.bz2", "*.tbz2", "*.tar.xz", "*.txz", "*.iso"
+  ],
+  "ArchiveExtractedGraceMinutes": 30,
+  "IncludePatterns": ["*"],
+  "ExcludePatterns": [
+    "*.crdownload", "*.opdownload", "*.download", "*.aria2", "*.part",
+    "*.filepart", "*.tmp", "*.temp", "*.!ut", "*.!qB", "_UNPACK_*", "_FAILED_*"
+  ],
+  "IgnoreHidden": true,
+  "OnNameConflict": "RenameWithTimestamp",
+  "MaxOperationsPerRun": 500,
+  "MinFreeSpaceMB": 512,
+  "UseRobocopy": true,
+  "RobocopyLargeFileMB": 256,
+  "DeleteEmptyFolders": true
+}

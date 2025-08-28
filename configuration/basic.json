@@ -1,0 +1,10 @@
+{
+  "FileUntouchedOlderThan": "10.00:00:00",
+  "FileOlderThan": "20.00:00:00",
+  "FileTimeCombine": "OR",
+  "FolderUntouchedOlderThan": "21.00:00:00",
+  "FolderOlderThan": "30.00:00:00",
+  "FolderTimeCombine": "AND",
+  "DeepFolderActivityScan": true,
+  "DryRun": true
+}

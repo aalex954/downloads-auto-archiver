@@ -17,7 +17,7 @@ via Task Scheduler. Defaults to DRY-RUN for safety.
 • Archive rule:
   - Move archives (.zip/.7z/.rar/.tar.* etc.) that have a sibling folder matching the archive's stem
 • Ignore rules:
-  - Partial downloads: *.crdownload, *.tmp, *.part, *.!ut, *.partial, *.download, *.aria2
+  - Partial downloads: *.crdownload, *.tmp, *.part, *.!ut, *.partial, *.download, *.aria2, etc.
   - Custom include/exclude patterns
 • Extras:
   - Delete empty folders (post-move)
@@ -25,6 +25,11 @@ via Task Scheduler. Defaults to DRY-RUN for safety.
   - Name conflict handling: Skip / Overwrite / RenameWithTimestamp (default)
   - Max operations per run to avoid surprises
   - Optional Robocopy for resilient moves (large files or network hiccups)
+  - Year/Month bucketing under destination root
+• Configuration:
+  - All options are script parameters with safe defaults (except DestinationRoot, which must be set)
+  - Optionally load parameters from a JSON or PSD1 config file via -ConfigFile (command-line parameters take precedence)
+  - Only SourceDir and LocalLogDir have default paths; all others must be set explicitly or via config if needed
 
 Tested on Windows PowerShell 5.1 and PowerShell 7+.
 
@@ -40,19 +45,18 @@ NOTE on LastAccessTime ("untouched"):
 [CmdletBinding()]
 param(
 [string]$SourceDir = "$env:USERPROFILE\Downloads",
-[string]$DestinationRoot = "Z:\\Downloads_Archive", # mapped NAS drive or UNC path
+[string]$DestinationRoot,
 [switch]$DryRun = $true,
-[switch]$VerboseLog,
-[string]$LocalLogDir = "$env:ProgramData\DownloadsAutoArchiver\logs",
-[string]$RemoteLogDir = "Z:\\Downloads_Archive\\_logs", # set to $null to disable
-
+[switch]$VerboseLog = $false,
+[string]$LocalLogDir = "$env:USERPROFILE\\DownloadsAutoArchiver\\logs",
+[string]$RemoteLogDir = $null,
+[string]$ConfigFile = $null,
 
 # File rules
 [Nullable[TimeSpan]]$FileUntouchedOlderThan = [TimeSpan]::FromDays(14), # LastAccessTime
 [Nullable[TimeSpan]]$FileOlderThan = [TimeSpan]::FromDays(30), # Age based on property below
 [ValidateSet('AND','OR')][string]$FileTimeCombine = 'AND',
 [ValidateSet('CreationTime','LastWriteTime')][string]$FileAgeProperty = 'CreationTime',
-
 
 # Folder rules
 [Nullable[TimeSpan]]$FolderUntouchedOlderThan = [TimeSpan]::FromDays(30),
@@ -61,17 +65,14 @@ param(
 [ValidateSet('CreationTime','LastWriteTime')][string]$FolderAgeProperty = 'CreationTime',
 [switch]$DeepFolderActivityScan = $true, # if set, compute latest activity from descendants (slower)
 
-
 # Archive detection
 [string[]]$ArchiveExtensions = @('*.zip','*.7z','*.rar','*.tar','*.tar.gz','*.tgz','*.tar.bz2','*.tbz2','*.tar.xz','*.txz','*.iso'),
 [int]$ArchiveExtractedGraceMinutes = 30, # wait this long after archive write time before moving
-
 
 # Patterns
 [string[]]$IncludePatterns = @('*'),
 [string[]]$ExcludePatterns = @('*.crdownload','*.opdownload','*.download','*.aria2','*.part','*.filepart','*.tmp','*.temp','*.!ut','*.!qB','_UNPACK_*','_FAILED_*'),
 [switch]$IgnoreHidden = $true,
-
 
 # Safety/Performance
 [ValidateSet('Skip','Overwrite','RenameWithTimestamp')][string]$OnNameConflict = 'RenameWithTimestamp',
@@ -80,10 +81,39 @@ param(
 [switch]$UseRobocopy = $true,
 [int]$RobocopyLargeFileMB = 256, # use robocopy for files >= this size
 
-
 # Housekeeping
 [switch]$DeleteEmptyFolders = $true
 )
+
+# -------------------------- Config file loading --------------------------
+
+if ($ConfigFile) {
+    if (-not (Test-Path -LiteralPath $ConfigFile)) {
+        throw "Config file not found: $ConfigFile"
+    }
+    try {
+        $configExt = [System.IO.Path]::GetExtension($ConfigFile).ToLowerInvariant()
+        if ($configExt -eq '.json') {
+            $configData = Get-Content -Raw -LiteralPath $ConfigFile | ConvertFrom-Json
+        } elseif ($configExt -eq '.psd1') {
+            $configData = Import-PowerShellDataFile -Path $ConfigFile
+        } else {
+            throw "Unsupported config file format: $ConfigFile"
+        }
+        foreach ($key in $configData.PSObject.Properties.Name) {
+            # Only set if parameter exists and not already set via command line
+            $paramValue = Get-Variable -Name $key -ErrorAction SilentlyContinue
+            if ($paramValue) {
+                # If parameter was set explicitly, skip (so CLI > config file)
+                continue
+            }
+            Set-Variable -Name $key -Value $configData.$key -Scope Script
+        }
+        Write-Host "Loaded configuration from $ConfigFile"
+    } catch {
+        throw "Failed to load config file: $ConfigFile :: $($_.Exception.Message)"
+    }
+}
 
 # -------------------------- Helpers --------------------------
 

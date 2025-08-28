@@ -1,0 +1,8 @@
+{
+  "FileUntouchedOlderThan": null,
+  "FileOlderThan": null,
+  "FolderUntouchedOlderThan": null,
+  "FolderOlderThan": null,
+  "OnNameConflict": "Skip",
+  "DryRun": false
+}
