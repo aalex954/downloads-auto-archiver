@@ -61,35 +61,36 @@ You can configure the script in two ways:
 
 Adjust parameters at the top of the script or pass them on the command line.
 
-| Parameter                      | Type / Values                                | Default                                     | Notes                                                                  |
-| ------------------------------ | -------------------------------------------- | ------------------------------------------- | ---------------------------------------------------------------------- |
-| `SourceDir`                    | string                                       | `$env:USERPROFILE\Downloads`                | Top‑level scanned directory                                            |
-| `DestinationRoot`              | string                                       | `Z:\Downloads_Archive`                      | Prefer UNC for Scheduled Tasks (e.g., `\\NAS\share\Downloads_Archive`) |
-| `DryRun`                       | switch                                       | **`$true`**                                 | **Audit first.** Set to `$false` to actually move items                |
-| `VerboseLog`                   | switch                                       | `$false`                                    | Console‑style messages in Task Scheduler history                       |
-| `LocalLogDir`                  | string                                       | `C:\ProgramData\DownloadsAutoArchiver\logs` | JSONL + CSV written here                                               |
-| `RemoteLogDir`                 | string or `$null`                            | `Z:\Downloads_Archive\_logs`                | Set `$null` to disable remote logging                                  |
-| `ConfigFile`                   | string (optional)                            | `$null`                                     | **Path to a `.json` or `.psd1` config file** (see below)               |
-| `FileUntouchedOlderThan`       | `TimeSpan?`                                  | `14 days`                                   | Top‑level files: LastAccessTime threshold                              |
-| `FileOlderThan`                | `TimeSpan?`                                  | `30 days`                                   | Top‑level files: age using `FileAgeProperty`                           |
-| `FileTimeCombine`              | `AND`/`OR`                                   | `AND`                                       | How to combine untouched + age for files                               |
-| `FileAgeProperty`              | `CreationTime`/`LastWriteTime`               | `CreationTime`                              | Which property defines “age”                                           |
-| `FolderUntouchedOlderThan`     | `TimeSpan?`                                  | `30 days`                                   | Top‑level folders unit‑move logic                                      |
-| `FolderOlderThan`              | `TimeSpan?`                                  | `45 days`                                   | —                                                                      |
-| `FolderTimeCombine`            | `AND`/`OR`                                   | `AND`                                       | —                                                                      |
-| `FolderAgeProperty`            | `CreationTime`/`LastWriteTime`               | `CreationTime`                              | —                                                                      |
-| `DeepFolderActivityScan`       | switch                                       | **`$true`**                                 | Uses latest activity of **descendants** (slower, safer)                |
-| `ArchiveExtensions`            | string\[]                                    | common archive types                        | Add more if needed                                                     |
-| `ArchiveExtractedGraceMinutes` | int                                          | `30`                                        | Don’t move very fresh archives immediately                             |
-| `IncludePatterns`              | string\[]                                    | `*`                                         | Only names matching any include pattern are eligible                   |
-| `ExcludePatterns`              | string\[]                                    | see below                                   | Skips partial/in‑progress files                                        |
-| `IgnoreHidden`                 | switch                                       | `$true`                                     | Skip items with Hidden attribute                                       |
-| `OnNameConflict`               | `Skip`/`Overwrite`/**`RenameWithTimestamp`** | `RenameWithTimestamp`                       | Destination conflicts                                                  |
-| `MaxOperationsPerRun`          | int                                          | `500`                                       | Safety cap                                                             |
-| `MinFreeSpaceMB`               | int                                          | `512`                                       | Abort if destination free space below this                             |
-| `UseRobocopy`                  | switch                                       | `$true`                                     | Better for large files / network hiccups                               |
-| `RobocopyLargeFileMB`          | int                                          | `256`                                       | Threshold for robocopy vs Move‑Item                                    |
-| `DeleteEmptyFolders`           | switch                                       | `$true`                                     | Remove empty dirs post‑move                                            |
+| Parameter                      | Type / Values                                | Default                                     | Notes                                                                             |
+| ------------------------------ | -------------------------------------------- | ------------------------------------------- | --------------------------------------------------------------------------------- |
+| `SourceDir`                    | string                                       | `$env:USERPROFILE\Downloads`                | Top‑level scanned directory                                                       |
+| `DestinationRoot`              | string                                       | `Z:\Downloads_Archive`                      | Prefer UNC for Scheduled Tasks (e.g., `\\NAS\share\Downloads_Archive`)            |
+| `DryRun`                       | switch                                       | **`$true`**                                 | **Audit first.** Set to `$false` to actually move items                           |
+| `VerboseLog`                   | switch                                       | `$false`                                    | Console‑style messages in Task Scheduler history                                  |
+| `LocalLogDir`                  | string                                       | `C:\ProgramData\DownloadsAutoArchiver\logs` | JSONL + CSV written here                                                          |
+| `RemoteLogDir`                 | string or `$null`                            | `Z:\Downloads_Archive\_logs`                | Set `$null` to disable remote logging                                             |
+| `ConfigFile`                   | string (optional)                            | `$null`                                     | **Path to a `.json` or `.psd1` config file** (see below)                          |
+| `RequireConfirmation`          | switch                                       | **`$true`**                                 | Interactive confirmation required before any destructive run when `-DryRun:$false`|
+| `FileUntouchedOlderThan`       | `TimeSpan?`                                  | `14 days`                                   | Top‑level files: LastAccessTime threshold                                         |
+| `FileOlderThan`                | `TimeSpan?`                                  | `30 days`                                   | Top‑level files: age using `FileAgeProperty`                                      |
+| `FileTimeCombine`              | `AND`/`OR`                                   | `AND`                                       | How to combine untouched + age for files                                          |
+| `FileAgeProperty`              | `CreationTime`/`LastWriteTime`               | `CreationTime`                              | Which property defines “age”                                                      |
+| `FolderUntouchedOlderThan`     | `TimeSpan?`                                  | `30 days`                                   | Top‑level folders unit‑move logic                                                 |
+| `FolderOlderThan`              | `TimeSpan?`                                  | `45 days`                                   | —                                                                                 |
+| `FolderTimeCombine`            | `AND`/`OR`                                   | `AND`                                       | —                                                                                 |
+| `FolderAgeProperty`            | `CreationTime`/`LastWriteTime`               | `CreationTime`                              | —                                                                                 |
+| `DeepFolderActivityScan`       | switch                                       | **`$true`**                                 | Uses latest activity of **descendants** (slower, safer)                           |
+| `ArchiveExtensions`            | string\[]                                    | common archive types                        | Add more if needed                                                                |
+| `ArchiveExtractedGraceMinutes` | int                                          | `30`                                        | Don’t move very fresh archives immediately                                        |
+| `IncludePatterns`              | string\[]                                    | `*`                                         | Only names matching any include pattern are eligible                              |
+| `ExcludePatterns`              | string\[]                                    | see below                                   | Skips partial/in‑progress files                                                   |
+| `IgnoreHidden`                 | switch                                       | `$true`                                     | Skip items with Hidden attribute                                                  |
+| `OnNameConflict`               | `Skip`/`Overwrite`/**`RenameWithTimestamp`** | `RenameWithTimestamp`                       | Destination conflicts                                                             |
+| `MaxOperationsPerRun`          | int                                          | `500`                                       | Safety cap                                                                        |
+| `MinFreeSpaceMB`               | int                                          | `512`                                       | Abort if destination free space below this                                        |
+| `UseRobocopy`                  | switch                                       | `$true`                                     | Better for large files / network hiccups                                          |
+| `RobocopyLargeFileMB`          | int                                          | `256`                                       | Threshold for robocopy vs Move‑Item                                               |
+| `DeleteEmptyFolders`           | switch                                       | `$true`                                     | Remove empty dirs post‑move                                                       |
 
 **Current `ExcludePatterns` default** (expanded):
 
@@ -332,6 +333,16 @@ Delete the script and log folders if no longer needed.
 ---
 
 ## Changelog
+
+**v1.2**
+
+* Safety improvements and bug fixes:
+  * Added `-ConfigFile` support (.json/.psd1) with correct precedence.
+  * Validate `DestinationRoot` after loading config.
+  * Create log/destination directories automatically if missing.
+  * Fixed Test-TimeRules type/parse bugs and improved robustness for synthetic proxies.
+  * Added `-RequireConfirmation` (default: enabled) to require interactive confirmation before destructive runs.
+  * Safer cleanup: remove only empty top-level directories; never touch nested project folders.
 
 **v1.1**
 
