@@ -51,6 +51,7 @@ param(
 [string]$LocalLogDir = "$env:USERPROFILE\\DownloadsAutoArchiver\\logs",
 [string]$RemoteLogDir = $null,
 [string]$ConfigFile = $null,
+[switch]$RequireConfirmation = $true,    # <--- NEW: require interactive confirmation before any deletions/moves that remove source files
 
 # File rules
 [Nullable[TimeSpan]]$FileUntouchedOlderThan = [TimeSpan]::FromDays(14), # LastAccessTime
@@ -453,6 +454,51 @@ foreach ($d in $topDirs) {
     }
 }
 
+# -------------------------- Confirmation before destructive actions --------------------------
+
+if ($RequireConfirmation -and -not $DryRun) {
+    $moveCount = $toMove.Count
+    if ($moveCount -gt 0) {
+        # Summarize planned operations
+        $summaryLines = @()
+        $summaryLines += "Planned operations: $moveCount item(s) will be moved (this will remove source items)."
+        # show a small sample
+        $sample = $toMove | Select-Object -First 10 | ForEach-Object { "{0} -> {1}" -f $_.Item.FullName, (Resolve-DestinationPath -Item $_.Item) }
+        if ($toMove.Count -gt 10) { $sample += "... (and more)" }
+        $summaryLines += ""
+        $summaryLines += "Sample planned moves (first 10):"
+        $summaryLines += $sample
+
+        # Log summary
+        Write-LogEntry -Level 'WARN' -Message ($summaryLines -join "`n")
+
+        # Interactive prompt (fail-safe for non-interactive hosts)
+        $choice = $null
+        try {
+            $choices = @([System.Management.Automation.Host.ChoiceDescription]::new("&Yes","Proceed with moves and deletions"),
+                         [System.Management.Automation.Host.ChoiceDescription]::new("&No","Abort; do not perform moves"))
+            $caption = "Downloads Auto-Archiver: confirm destructive actions"
+            $message = "This run will move $moveCount item(s) and remove the source files. Proceed?"
+            $choiceIdx = $Host.UI.PromptForChoice($caption, $message, $choices, 1)
+            $choice = $choiceIdx
+        } catch {
+            # Host not interactive - abort to be safe
+            Write-LogEntry -Level 'ERROR' -Message "Non-interactive host and RequireConfirmation enabled: aborting to avoid destructive actions."
+            throw "RequireConfirmation is enabled but no interactive prompt is available. Re-run with -RequireConfirmation:$false to skip confirmation in non-interactive contexts."
+        }
+
+        if ($choice -ne 0) {
+            Write-LogEntry -Level 'WARN' -Message "User aborted run via confirmation prompt. No files were moved or deleted."
+            exit 0
+        } else {
+            Write-LogEntry -Level 'INFO' -Message "User confirmed destructive actions; proceeding with moves."
+        }
+    } else {
+        # Nothing to move; safe to continue (no destructive actions)
+        Write-LogEntry -Message "No items selected for move; nothing to confirm."
+    }
+}
+
 # -------------------------- Execute moves --------------------------
 
 $ops = 0
@@ -475,25 +521,84 @@ foreach ($entry in $toMove) {
     }
 }
 
-# -------------------------- Cleanup: delete empty folders --------------------------
-
+# -------------------------- Cleanup: delete empty top-level folders only (safer) --------------------------
+# Policy: do NOT touch nested folders. Only remove empty immediate children of $SourceDir
+# Respect DryRun and RequireConfirmation (interactive). Skip hidden/excluded items.
 if ($DeleteEmptyFolders) {
     $deleted = 0
-    # Re-scan directories (recursive) and remove empties
-    Get-ChildItem -LiteralPath $SourceDir -Directory -Force -Recurse | Sort-Object FullName -Descending | ForEach-Object {
-        try {
-            $hasChildren = (Get-ChildItem -LiteralPath $_.FullName -Force | Measure-Object).Count -gt 0
-            if (-not $hasChildren) {
-                if ($DryRun) { Write-LogEntry -Message "[DRYRUN] Would remove empty directory: $($_.FullName)" }
-                else {
-                    Remove-Item -LiteralPath $_.FullName -Force -ErrorAction Stop
-                    $deleted++
-                    Write-LogEntry -Message "Removed empty directory: $($_.FullName)"
-                }
-            }
-        } catch {}
+
+    # Grab immediate child directories only (top-level)
+    try {
+        $topLevelDirs = Get-ChildItem -LiteralPath $SourceDir -Directory -Force -ErrorAction Stop
+    } catch {
+        Write-LogEntry -Level 'WARN' -Message "Failed to enumerate top-level directories under $($SourceDir): $($_.Exception.Message)"
+        $topLevelDirs = @()
     }
-    if ($deleted -gt 0) { Write-LogEntry -Message "Deleted empty folders: $deleted" }
+
+    # If destructive actions require confirmation and we are about to perform real deletions,
+    # prompt the user (skip prompt for DryRun). If an earlier confirmation already occurred this run,
+    # set $script:ConfirmedDestructive to avoid double prompts.
+    $needsConfirmation = ($RequireConfirmation -and -not $DryRun)
+    if ($needsConfirmation -and -not (Get-Variable -Name ConfirmedDestructive -Scope Script -ErrorAction SilentlyContinue)) {
+        # Only prompt when there are top-level empties that would be deleted (compute quickly)
+        $wouldDeleteCount = 0
+        foreach ($d in $topLevelDirs) {
+            try {
+                $hasChildren = (Get-ChildItem -LiteralPath $d.FullName -Force -ErrorAction Stop | Measure-Object).Count -gt 0
+                if (-not $hasChildren) {
+                    if ($IgnoreHidden -and ($d.Attributes -band [IO.FileAttributes]::Hidden)) { continue }
+                    if (-not (Test-Patterns -Item $d -Includes $IncludePatterns -Excludes $ExcludePatterns)) { continue }
+                    $wouldDeleteCount++
+                }
+            } catch { continue }
+        }
+
+        if ($wouldDeleteCount -gt 0) {
+            try {
+                $choices = @(
+                    [System.Management.Automation.Host.ChoiceDescription]::new("&Yes","Proceed with removing empty top-level directories"),
+                    [System.Management.Automation.Host.ChoiceDescription]::new("&No","Abort; do not remove directories")
+                )
+                $caption = "Downloads Auto-Archiver: confirm empty-directory removals"
+                $message = "This run would remove $wouldDeleteCount empty top-level directory(ies) under $SourceDir. Proceed?"
+                $choiceIdx = $Host.UI.PromptForChoice($caption, $message, $choices, 1)
+                if ($choiceIdx -ne 0) {
+                    Write-LogEntry -Level 'WARN' -Message "User aborted empty-directory cleanup. No directories were removed."
+                    $topLevelDirs = @()  # skip deletion loop
+                } else {
+                    # mark that destructive actions were confirmed this run
+                    Set-Variable -Name ConfirmedDestructive -Scope Script -Value $true -Force
+                    Write-LogEntry -Level 'INFO' -Message "User confirmed empty-directory cleanup; proceeding."
+                }
+            } catch {
+                Write-LogEntry -Level 'ERROR' -Message "RequireConfirmation enabled but host is non-interactive; skipping empty-directory cleanup to avoid destructive actions."
+                $topLevelDirs = @()  # skip deletion loop
+            }
+        }
+    }
+
+    foreach ($dir in $topLevelDirs) {
+        try {
+            $hasChildren = (Get-ChildItem -LiteralPath $dir.FullName -Force -ErrorAction Stop | Measure-Object).Count -gt 0
+            if ($hasChildren) { continue }
+
+            # Respect hidden flag and include/exclude patterns
+            if ($IgnoreHidden -and ($dir.Attributes -band [IO.FileAttributes]::Hidden)) { continue }
+            if (-not (Test-Patterns -Item $dir -Includes $IncludePatterns -Excludes $ExcludePatterns)) { continue }
+
+            if ($DryRun) {
+                Write-LogEntry -Message "[DRYRUN] Would remove empty top-level directory: $($dir.FullName)"
+            } else {
+                Remove-Item -LiteralPath $dir.FullName -Force -ErrorAction Stop
+                $deleted++
+                Write-LogEntry -Message "Removed empty top-level directory: $($dir.FullName)"
+            }
+        } catch {
+            Write-LogEntry -Level 'WARN' -Message "Failed to evaluate/delete top-level dir $($dir.FullName): $($_.Exception.Message)"
+        }
+    }
+
+    if ($deleted -gt 0) { Write-LogEntry -Message "Deleted empty top-level folders: $deleted" }
 }
 
 Write-LogEntry -Message "Completed. Operations performed: $ops (DryRun=$DryRun)"
