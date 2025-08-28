@@ -4,5 +4,5 @@
   "FolderUntouchedOlderThan": null,
   "FolderOlderThan": null,
   "OnNameConflict": "Skip",
-  "DryRun": false
+  "DryRun": true
 }
