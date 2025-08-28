@@ -88,9 +88,6 @@ param(
 # -------------------------- Config file loading --------------------------
 
 if ($ConfigFile) {
-    if (-not (Test-Path -LiteralPath $ConfigFile)) {
-        throw "Config file not found: $ConfigFile"
-    }
     try {
         $configExt = [System.IO.Path]::GetExtension($ConfigFile).ToLowerInvariant()
         if ($configExt -eq '.json') {
@@ -100,18 +97,36 @@ if ($ConfigFile) {
         } else {
             throw "Unsupported config file format: $ConfigFile"
         }
+        # Only override parameters NOT set via command line
+        $bound = $PSBoundParameters.Keys
         foreach ($key in $configData.PSObject.Properties.Name) {
-            # Only set if parameter exists and not already set via command line
-            $paramValue = Get-Variable -Name $key -ErrorAction SilentlyContinue
-            if ($paramValue) {
-                # If parameter was set explicitly, skip (so CLI > config file)
-                continue
-            }
+            if ($bound -contains $key) { continue }
             Set-Variable -Name $key -Value $configData.$key -Scope Script
         }
         Write-Host "Loaded configuration from $ConfigFile"
     } catch {
         throw "Failed to load config file: $ConfigFile :: $($_.Exception.Message)"
+    }
+}
+
+if ([string]::IsNullOrWhiteSpace($DestinationRoot)) {
+    throw "DestinationRoot parameter is required. Please specify a destination path."
+}
+
+$dirsToEnsure = @()
+if ($LocalLogDir)   { $dirsToEnsure += $LocalLogDir }
+if ($RemoteLogDir)  { $dirsToEnsure += $RemoteLogDir }
+if ($DestinationRoot) { $dirsToEnsure += $DestinationRoot }
+
+foreach ($d in $dirsToEnsure | Select-Object -Unique) {
+    if ([string]::IsNullOrWhiteSpace($d)) { continue }
+    try {
+        if (-not (Test-Path -LiteralPath $d)) {
+            New-Item -Path $d -ItemType Directory -Force | Out-Null
+            if ($VerboseLog) { Write-Host "Created directory: $d" }
+        }
+    } catch {
+        Write-Host "WARN: Could not create directory '$d': $($_.Exception.Message)" -ForegroundColor Yellow
     }
 }
 
@@ -216,7 +231,7 @@ function Get-LatestFolderActivity {
 
 function Test-TimeRules {
     param(
-        [System.IO.FileSystemInfo]$Item,
+        [Parameter(Mandatory)][object]$Item,
         [Nullable[TimeSpan]]$UntouchedOlderThan,
         [Nullable[TimeSpan]]$OlderThan,
         [ValidateSet('AND','OR')][string]$Combine,
@@ -224,21 +239,48 @@ function Test-TimeRules {
     )
     $now = Get-Date
 
+    # Safely read time properties from either FileSystemInfo or a synthetic PSCustomObject
+    $itemLastAccess   = $null
+    $itemLastWrite    = $null
+    $itemCreationTime = $null
+
+    if ($Item -ne $null) {
+        if ($Item -is [System.IO.FileSystemInfo]) {
+            $itemLastAccess   = $Item.LastAccessTime
+            $itemLastWrite    = $Item.LastWriteTime
+            $itemCreationTime = $Item.CreationTime
+        } else {
+            # Attempt dynamic property access for PSCustomObject or hashtable
+            if ($Item.PSObject.Properties.Match('LastAccessTime'))  { $itemLastAccess   = $Item.LastAccessTime  }
+            if ($Item.PSObject.Properties.Match('LastWriteTime'))   { $itemLastWrite    = $Item.LastWriteTime   }
+            if ($Item.PSObject.Properties.Match('CreationTime'))    { $itemCreationTime = $Item.CreationTime    }
+        }
+    }
+
+    # Ensure fallback values are valid datetimes
+    if (-not ($itemLastAccess -is [datetime]))   { $itemLastAccess   = [datetime]'1900-01-01' }
+    if (-not ($itemLastWrite  -is [datetime]))   { $itemLastWrite    = [datetime]'1900-01-01' }
+    if (-not ($itemCreationTime -is [datetime])) { $itemCreationTime = [datetime]'1900-01-01' }
+
     $untouchedOk = $false
     if ($UntouchedOlderThan) {
         # If LastAccessTime looks uninitialized, fallback to LastWriteTime
-        $accessTime = if ($Item.LastAccessTime -gt [datetime]'1900-01-01') { $Item.LastAccessTime } else { $Item.LastWriteTime }
+        $accessTime = if ($itemLastAccess -gt [datetime]'1900-01-01') { $itemLastAccess } else { $itemLastWrite }
         $untouchedOk = ($now - $accessTime) -ge $UntouchedOlderThan
     }
 
     $ageOk = $false
     if ($OlderThan) {
-        $agePropVal = if ($AgeProperty -eq 'CreationTime') { $Item.CreationTime } else { $Item.LastWriteTime }
+        $agePropVal = if ($AgeProperty -eq 'CreationTime') { $itemCreationTime } else { $itemLastWrite }
         $ageOk = ($now - $agePropVal) -ge $OlderThan
     }
 
     if ($UntouchedOlderThan -and $OlderThan) {
-        return if ($Combine -eq 'AND') { $untouchedOk -and $ageOk } else { $untouchedOk -or $ageOk }
+        if ($Combine -eq 'AND') {
+            return ($untouchedOk -and $ageOk)
+        } else {
+            return ($untouchedOk -or $ageOk)
+        }
     } elseif ($UntouchedOlderThan) {
         return $untouchedOk
     } elseif ($OlderThan) {
