@@ -198,6 +198,7 @@ function Test-Patterns {
 
 function Test-FileInUse {
     param([string]$Path)
+    if (-not (Test-Path $Path)) { return $false }
     try {
         $fs = [System.IO.File]::Open($Path, 'Open', 'Read', 'None')
         $fs.Close()
