@@ -1,47 +1,3 @@
-<#
-Downloads Auto-Archiver.ps1
-
-Safely and efficiently moves old/unused items from your Windows 11 Downloads folder
-(to a NAS / mapped drive) based on configurable rules. Designed for recurring use
-via Task Scheduler. Defaults to DRY-RUN for safety.
-
-• File rules (top-level only):
-  - Untouched (LastAccessTime) older than X
-  - Older than X (CreationTime or LastWriteTime)
-  - Combine with AND/OR
-• Folder rules (top-level only):
-  - Untouched (LastAccessTime) older than X
-  - Older than X (CreationTime or LastWriteTime)
-  - Combine with AND/OR
-  - Optional deep scan for recent activity of descendants
-• Archive rule:
-  - Move archives (.zip/.7z/.rar/.tar.* etc.) that have a sibling folder matching the archive's stem
-• Ignore rules:
-  - Partial downloads: *.crdownload, *.tmp, *.part, *.!ut, *.partial, *.download, *.aria2, etc.
-  - Custom include/exclude patterns
-• Extras:
-  - Delete empty folders (post-move)
-  - Logging (local AND/OR remote). JSONL + CSV
-  - Name conflict handling: Skip / Overwrite / RenameWithTimestamp (default)
-  - Max operations per run to avoid surprises
-  - Optional Robocopy for resilient moves (large files or network hiccups)
-  - Year/Month bucketing under destination root
-• Configuration:
-  - All options are script parameters with safe defaults (except DestinationRoot, which must be set)
-  - Optionally load parameters from a JSON or PSD1 config file via -ConfigFile (command-line parameters take precedence)
-  - Only SourceDir and LocalLogDir have default paths; all others must be set explicitly or via config if needed
-
-Tested on Windows PowerShell 5.1 and PowerShell 7+.
-
-NOTE on LastAccessTime ("untouched"):
-  Windows may throttle or disable updates to LastAccessTime for performance.
-  If this field is stale, the "untouched" rule could be unreliable.
-  You can check/update policy (requires admin & reboot):
-    fsutil behavior query DisableLastAccess
-    fsutil behavior set DisableLastAccess 2    # System managed (recommended on Win10/11)
-    # or 0 to always update; 1/3 disables updates
-#>
-
 [CmdletBinding(PositionalBinding = $false)]
 param(
 [string]$SourceDir = "$env:USERPROFILE\Downloads",
@@ -51,7 +7,7 @@ param(
 [string]$LocalLogDir = "$env:USERPROFILE\\DownloadsAutoArchiver\\logs",
 [string]$RemoteLogDir = $null,
 [string]$ConfigFile = $null,
-[switch]$RequireConfirmation = $true,    # <--- NEW: require interactive confirmation before any deletions/moves that remove source files
+[string]$RequireConfirmation = $true,    # <--- NEW: require interactive confirmation before any deletions/moves that remove source files
 
 # File rules
 [Nullable[TimeSpan]]$FileUntouchedOlderThan = [TimeSpan]::FromDays(14), # LastAccessTime
