@@ -42,11 +42,11 @@ NOTE on LastAccessTime ("untouched"):
     # or 0 to always update; 1/3 disables updates
 #>
 
-[CmdletBinding()]
+[CmdletBinding(PositionalBinding = $false)]
 param(
 [string]$SourceDir = "$env:USERPROFILE\Downloads",
 [string]$DestinationRoot,
-[switch]$DryRun = $true,
+[string]$DryRun = $true,
 [switch]$VerboseLog = $false,
 [string]$LocalLogDir = "$env:USERPROFILE\\DownloadsAutoArchiver\\logs",
 [string]$RemoteLogDir = $null,
