@@ -1,0 +1,30 @@
+name: Downloads-Auto-Archiver Tests
+
+on:
+  push:
+
+jobs:
+  test-pester:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Run Pester Tests
+        uses: PSModule/Invoke-Pester@v3
+        id: action-test
+        continue-on-error: true
+        with:
+          TestResult_TestSuiteName: UnitTests
+          Path: ./tests
+          Run_Path: ./src
+
+      - name: Status
+        shell: pwsh
+        env:
+          OUTCOME: ${{ steps.action-test.outcome }}
+          CONCLUSION: ${{ steps.action-test.conclusion }}
+        run: |
+          Write-Host "Outcome: [$env:OUTCOME]"
+          Write-Host "Conclusion: [$env:CONCLUSION]"
