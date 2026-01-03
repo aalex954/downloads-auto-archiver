@@ -8,6 +8,8 @@ Safely and efficiently moves **old or untouched items** from your Windows 11 **D
 
 **Script file:** `Downloads-Auto-Archiver.ps1`
 
+[**PowerShell Gallery**](https://www.powershellgallery.com/packages/Downloads-Auto-Archiver/1.0.0)
+
 ---
 
 ## Key features
