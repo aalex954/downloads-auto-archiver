@@ -1,4 +1,4 @@
-name: Publish To PS Gallery
+name: Publish D-A-A To PS Gallery
 
 on:
   push:
