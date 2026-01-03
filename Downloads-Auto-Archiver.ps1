@@ -2,7 +2,7 @@
 param(
 [string]$SourceDir = "$env:USERPROFILE\Downloads",
 [string]$DestinationRoot,
-[string]$DryRun = $true,
+[string]$DryRun = $false,
 [switch]$VerboseLog = $false,
 [string]$LocalLogDir = "$env:USERPROFILE\\DownloadsAutoArchiver\\logs",
 [string]$RemoteLogDir = $null,
