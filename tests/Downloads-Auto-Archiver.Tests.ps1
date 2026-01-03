@@ -161,12 +161,15 @@ Describe "Downloads Auto-Archiver - unit tests" {
     }
 
     Context "Resolve-DestinationPath & Resolve-NameConflict" {
-        It "builds yyyy\\MM destination and applies conflict policy" {
+        It "builds yyyy/MM destination and applies conflict policy" {
             $DestinationRoot = Join-Path $Script:TestRoot 'destroot'
             New-Item -ItemType Directory -Path $DestinationRoot -Force | Out-Null
             $srcFile = New-Item -Path (Join-Path $Script:TestRoot 'source.txt') -ItemType File -Force
             $dst = Resolve-DestinationPath -Item (Get-Item $srcFile.FullName)
-            $dst -like "*$(Get-Date -Format 'yyyy\\MM')*" | Should -BeTrue
+            # Check for year/month pattern in path (cross-platform)
+            $expectedYear = (Get-Date -Format 'yyyy')
+            $expectedMonth = (Get-Date -Format 'MM')
+            $dst -match "$expectedYear[/\\]$expectedMonth" | Should -BeTrue
             # create a file at destination to simulate conflict
             New-Item -Path $dst -ItemType File -Force | Out-Null
             $OnNameConflict = 'Skip'

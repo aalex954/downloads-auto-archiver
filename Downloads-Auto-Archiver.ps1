@@ -250,8 +250,9 @@ function Test-TimeRules {
 
 function Resolve-DestinationPath {
     param([System.IO.FileSystemInfo]$Item)
-    $subdir = (Get-Date -Format 'yyyy\\MM') # year/month bucketing
-    $dstDir = Join-Path $DestinationRoot $subdir
+    $year = Get-Date -Format 'yyyy'
+    $month = Get-Date -Format 'MM'
+    $dstDir = Join-Path $DestinationRoot $year $month  # year/month bucketing (cross-platform)
     New-DirectoryIfMissing -Path $dstDir
     return Join-Path $dstDir $Item.Name
 }
