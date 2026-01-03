@@ -1,6 +1,7 @@
 # Downloads Auto‑Archiver
 
 [![Downloads-Auto-Archiver Tests](https://github.com/aalex954/downloads-auto-archiver/actions/workflows/main.yml/badge.svg)](https://github.com/aalex954/downloads-auto-archiver/actions/workflows/main.yml)
+[![CodeQL](https://github.com/aalex954/downloads-auto-archiver/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/aalex954/downloads-auto-archiver/actions/workflows/github-code-scanning/codeql)
 
 Safely and efficiently moves **old or untouched items** from your Windows 11 **Downloads** folder to a **NAS / mapped drive** on a recurring schedule. Built for **Task Scheduler**. Defaults to **DRY‑RUN** so you can audit actions before anything is moved.
 
