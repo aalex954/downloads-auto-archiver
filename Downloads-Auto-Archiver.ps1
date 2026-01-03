@@ -2,12 +2,12 @@
 param(
 [string]$SourceDir = "$env:USERPROFILE\Downloads",
 [string]$DestinationRoot,
-[string]$DryRun = $false,
+[bool]$DryRun = $false,
 [switch]$VerboseLog = $false,
 [string]$LocalLogDir = "$env:USERPROFILE\\DownloadsAutoArchiver\\logs",
 [string]$RemoteLogDir = $null,
 [string]$ConfigFile = $null,
-[string]$RequireConfirmation = $true,    # <--- NEW: require interactive confirmation before any deletions/moves that remove source files
+[bool]$RequireConfirmation = $true,    # <--- NEW: require interactive confirmation before any deletions/moves that remove source files
 
 # File rules
 [Nullable[TimeSpan]]$FileUntouchedOlderThan = [TimeSpan]::FromDays(14), # LastAccessTime
