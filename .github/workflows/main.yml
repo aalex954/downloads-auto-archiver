@@ -3,6 +3,9 @@ name: Downloads-Auto-Archiver Tests
 on:
   push:
 
+permissions:
+  contents: read
+
 jobs:
   test-pester:
     runs-on: ubuntu-latest
