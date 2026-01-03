@@ -1,4 +1,4 @@
-name: Release
+name: Publish To PS Gallery
 
 on:
   push:
@@ -38,18 +38,18 @@ jobs:
       - name: Check out
         uses: actions/checkout@v4
 
-      - name: Update manifest version from tag
+      - name: Update script version from tag
         shell: pwsh
         run: |
           $version = "${{ github.ref_name }}" -replace '^v', ''
-          $manifest = Get-Content -Path ./Downloads-Auto-Archiver.psd1 -Raw
-          $manifest = $manifest -replace "ModuleVersion\s*=\s*'[^']+'", "ModuleVersion = '$version'"
-          Set-Content -Path ./Downloads-Auto-Archiver.psd1 -Value $manifest
-          Write-Host "Updated manifest to version $version"
+          $script = Get-Content -Path ./Downloads-Auto-Archiver.ps1 -Raw
+          $script = $script -replace '(?<=\.VERSION\s+)\d+\.\d+\.\d+', $version
+          Set-Content -Path ./Downloads-Auto-Archiver.ps1 -Value $script -NoNewline
+          Write-Host "Updated script to version $version"
 
       - name: Publish to PowerShell Gallery
         shell: pwsh
         env:
           PSGALLERY_API_KEY: ${{ secrets.PSGALLERY_API_KEY }}
         run: |
-          Publish-Module -Path . -NuGetApiKey $env:PSGALLERY_API_KEY -Verbose
+          Publish-Script -Path ./Downloads-Auto-Archiver.ps1 -NuGetApiKey $env:PSGALLERY_API_KEY -Verbose

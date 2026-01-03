@@ -1,3 +1,24 @@
+<#PSScriptInfo
+.VERSION 1.0.0
+.GUID 139b1b17-5955-4a1c-acde-1c39074edce9
+.AUTHOR aalex954
+.COMPANYNAME aalex954
+.COPYRIGHT (c) 2026 aalex954. MIT License.
+.TAGS Downloads Archive Cleanup NAS Automation TaskScheduler Windows
+.LICENSEURI https://github.com/aalex954/downloads-auto-archiver/blob/main/LICENSE
+.PROJECTURI https://github.com/aalex954/downloads-auto-archiver
+.RELEASENOTES Initial stable release. See https://github.com/aalex954/downloads-auto-archiver/releases
+#>
+
+<#
+.SYNOPSIS
+    Safely moves old or untouched items from your Downloads folder to a NAS or archive location.
+.DESCRIPTION
+    Downloads Auto-Archiver efficiently moves old or untouched items from your Windows Downloads 
+    folder to a NAS or mapped drive on a recurring schedule. Built for Task Scheduler with 
+    DryRun mode for safe auditing before any files are moved.
+#>
+
 [CmdletBinding(PositionalBinding = $false)]
 param(
 [string]$SourceDir = "$env:USERPROFILE\Downloads",
