@@ -4,6 +4,8 @@
 [![CodeQL](https://github.com/aalex954/downloads-auto-archiver/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/aalex954/downloads-auto-archiver/actions/workflows/github-code-scanning/codeql)
 [![Release](https://github.com/aalex954/downloads-auto-archiver/actions/workflows/release.yml/badge.svg)](https://github.com/aalex954/downloads-auto-archiver/actions/workflows/release.yml)
 
+[![PowerShell Gallery Version](https://img.shields.io/powershellgallery/v/Downloads-Auto-Archiver?logo=powershell&label=PowerShell%20Gallery%20-%20DAA)](https://www.powershellgallery.com/packages/Downloads-Auto-Archiver/1.0.0)
+
 Safely and efficiently moves **old or untouched items** from your Windows 11 **Downloads** folder to a **NAS / mapped drive** on a recurring schedule. Built for **Task Scheduler**. Defaults to **DRY‑RUN** so you can audit actions before anything is moved.
 
 **Script file:** `Downloads-Auto-Archiver.ps1`
